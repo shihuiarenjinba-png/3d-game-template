@@ -1,0 +1,96 @@
+name: Godot 4.3 Windows x64 QA export
+
+on:
+  push:
+    branches:
+      - 'codex/3d-template-godot-bootstrap-20261026'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Source structure checks
+        run: python -m unittest discover -s tests -v
+      - name: Download official Godot 4.3 engine and Windows export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 3 'https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip' -o /tmp/godot.zip
+          curl -fL --retry 3 --retry-delay 3 'https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz' -o /tmp/export_templates.tpz
+          mkdir -p /tmp/godot-bin /tmp/godot-templates "$HOME/.local/share/godot/export_templates/4.3.stable"
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          unzip -q /tmp/export_templates.tpz -d /tmp/godot-templates
+          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
+          chmod +x /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64
+          test -s "$HOME/.local/share/godot/export_templates/4.3.stable/windows_release_x86_64.exe"
+      - name: Real Godot import and Windows export
+        shell: bash
+        run: |
+          set -euo pipefail
+          GODOT=/tmp/godot-bin/Godot_v4.3-stable_linux.x86_64
+          "$GODOT" --headless --editor --path . --import
+          mkdir -p dist
+          "$GODOT" --headless --path . --export-release 'Windows Desktop' dist/3d-starter.exe
+      - name: Validate Windows files and record immutable source provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          out = Path("dist")
+          exe = out / "3d-starter.exe"
+          pck = out / "3d-starter.pck"
+          if not exe.is_file() or not pck.is_file():
+              raise SystemExit("HOLD: Windows EXE/PCK pair not produced")
+          if exe.stat().st_size < 1024 or exe.open("rb").read(2) != b"MZ":
+              raise SystemExit("HOLD: invalid Windows PE executable")
+          if pck.stat().st_size < 32:
+              raise SystemExit("HOLD: empty Godot resource pack")
+          evidence = {
+              "schema_version": "1.0",
+              "source_repository": os.environ["GITHUB_REPOSITORY"],
+              "source_sha": os.environ["GITHUB_SHA"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "godot_version": "4.3.stable",
+              "platform": "Windows Desktop",
+              "architecture": "x86_64",
+              "status": "QA_UNSIGNED_EXPORT",
+              "store_identity": None,
+              "msix_created": False,
+              "windows_gpu_qa": "NOT_RUN",
+              "files": [
+                  {"name": path.name, "bytes": path.stat().st_size,
+                   "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                  for path in (exe, pck)
+              ],
+          }
+          (out / "build-evidence.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(evidence, indent=2))
+          PY
+      - name: Upload unsigned Windows export and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-3d-windows-x64-qa-unsigned
+          path: |
+            dist/3d-starter.exe
+            dist/3d-starter.pck
+            dist/build-evidence.json
+          if-no-files-found: error
+          retention-days: 7
