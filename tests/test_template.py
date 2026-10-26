@@ -32,6 +32,16 @@ class TemplateTests(unittest.TestCase):
             with self.subTest(item=item):
                 self.assertIn(item, ignored)
 
+    def test_factory_required_godot_smoke_contract(self):
+        # 3d-game-factory validates this exact candidate path and test_ entry.
+        smoke = (ROOT / "tests/test_smoke.gd").read_text(encoding="utf-8")
+        self.assertIn("extends SceneTree", smoke)
+        self.assertIn("func test_main_scene()", smoke)
+        self.assertIn("get_node_or_null", smoke)
+        self.assertIn("quit(1)", smoke)
+        workflow = (ROOT / ".github/workflows/godot-smoke.yml").read_text(encoding="utf-8")
+        self.assertIn("--script res://tests/test_smoke.gd", workflow)
+
     def test_real_engine_ci_is_declared(self):
         workflow = (ROOT / ".github/workflows/godot-smoke.yml").read_text(encoding="utf-8")
         self.assertIn("Godot_v4.3-stable_linux.x86_64.zip", workflow)
