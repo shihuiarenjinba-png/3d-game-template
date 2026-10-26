@@ -29,5 +29,7 @@ jobs:
           chmod +x /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64
       - name: Godot import and resource validation
         run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --import
+      - name: Execute Godot 3D scene regression (not Windows GPU QA)
+        run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --path . --script res://tests/test_smoke.gd
       - name: Godot launch smoke (not Windows GPU QA)
         run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --path . --quit-after 5
