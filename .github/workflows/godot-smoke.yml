@@ -1,0 +1,35 @@
+name: Godot 4.3 template smoke
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  godot-headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Offline source structure tests
+        run: python -m unittest discover -s tests -v
+      - name: Install official Godot 4.3 headless-capable Linux binary
+        shell: bash
+        run: |
+          curl -fL --retry 3 --retry-delay 2 'https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip' -o /tmp/godot.zip
+          mkdir -p /tmp/godot-bin
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          chmod +x /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64
+      - name: Godot import and resource validation
+        run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --import
+      - name: Execute Godot 3D scene regression (not Windows GPU QA)
+        run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --path . --script res://tests/test_smoke.gd
+      - name: Godot launch smoke (not Windows GPU QA)
+        run: /tmp/godot-bin/Godot_v4.3-stable_linux.x86_64 --headless --path . --quit-after 5
