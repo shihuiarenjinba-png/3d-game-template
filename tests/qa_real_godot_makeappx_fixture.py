@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 QA_SHA = "e84c448e48105d15d2040f87fb279835ddd0119b"
 TEMPLATE_REPO = "shihuiarenjinba-png/3d-game-template"
-SHA256 = re.compile(r"[0-9a-f]{64}\\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def sha256_file(path: Path) -> str:
@@ -162,7 +162,7 @@ def main() -> None:
         "store_submission_allowed": False,
     }
     (out / "fixture-evidence.json").write_text(
-        json.dumps(evidence, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(evidence, indent=2, sort_keys=True))
 
 
