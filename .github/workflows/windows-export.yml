@@ -22,7 +22,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Source structure checks
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m compileall -q tests
+          python -m unittest discover -s tests -v
       - name: Download official Godot 4.3 engine and Windows export templates
         shell: bash
         run: |
@@ -94,3 +96,40 @@ jobs:
             dist/build-evidence.json
           if-no-files-found: error
           retention-days: 7
+
+  makeappx-real-godot-template-fixture:
+    needs: windows-export
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout pinned 3D QA verifier (public repository)
+        uses: actions/checkout@v4
+        with:
+          repository: shihuiarenjinba-png/3d-build-qa
+          ref: e84c448e48105d15d2040f87fb279835ddd0119b
+          path: qa-code
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download real Godot EXE/PCK from this exact workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: godot-3d-windows-x64-qa-unsigned
+          path: dist
+      - name: Compile fixture and pinned verifier
+        run: python -m compileall -q tests/qa_real_godot_makeappx_fixture.py qa-code
+      - name: Real Godot 4.3 EXE/PCK -> MakeAppx -> strict byte QA
+        run: python tests/qa_real_godot_makeappx_fixture.py
+      - name: Retain unsigned template fixture evidence (never a product)
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-4-3-real-export-makeappx-fixture-not-product
+          path: |
+            ${{ runner.temp }}/3d-real-godot-makeappx-fixture/real-godot-template-fixture.msix
+            ${{ runner.temp }}/3d-real-godot-makeappx-fixture/fixture-evidence.json
+          if-no-files-found: error
+          retention-days: 3
